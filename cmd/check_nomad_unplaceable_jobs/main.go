@@ -113,8 +113,16 @@ func getNodes(client *api.Client) ([]node, error) {
 
 type node struct {
 	ID        string
-	resources *api.Resources
+	resources *resources 
 }
+
+type resources struct {
+	CPU int
+	DiskMB int
+	MemoryMB int
+	IOPS int
+}
+
 
 func (n node) String() string {
 	return fmt.Sprintf("node_id=%s cpu=%d memory=%d disk=%d", n.ID, n.resources.CPU, n.resources.MemoryMB, n.resources.DiskMB)
@@ -123,7 +131,7 @@ func (n node) String() string {
 type failingJob struct {
 	jobID     string
 	dimension string
-	resources *api.Resources
+	resources *resources
 }
 
 func (j failingJob) String() string {
@@ -168,7 +176,7 @@ func getEvaluations(client *api.Client) ([]failingJob, error) {
 }
 
 // getResourcesForJob sums up all the resources from all Tasks in all Task Groups in a job
-func getResourcesForJob(client *api.Client, jobID string) (string, *api.Resources, error) {
+func getResourcesForJob(client *api.Client, jobID string) (string, *resources, error) {
 	job, _, err := client.Jobs().Info(jobID, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "job not found") {
@@ -177,22 +185,23 @@ func getResourcesForJob(client *api.Client, jobID string) (string, *api.Resource
 		return "", nil, err
 	}
 
-	var total api.Resources
+	var total resources
 	for _, tg := range job.TaskGroups {
 		if tg.EphemeralDisk != nil {
-			total.DiskMB += tg.EphemeralDisk.SizeMB
+			total.DiskMB += *tg.EphemeralDisk.SizeMB
 		}
 		for _, t := range tg.Tasks {
-			total.CPU += t.Resources.CPU
-			total.MemoryMB += t.Resources.MemoryMB
-			total.DiskMB += t.Resources.DiskMB
+			total.CPU += *t.Resources.CPU
+			total.MemoryMB += *t.Resources.MemoryMB
+			total.DiskMB += *t.Resources.DiskMB
+			total.IOPS += *t.Resources.IOPS
 		}
 	}
 
-	return job.Status, &total, nil
+	return *job.Status, &total, nil
 }
 
-func getResourcesForNode(client *api.Client, id string) (*api.Resources, error) {
+func getResourcesForNode(client *api.Client, id string) (*resources, error) {
 	node, _, err := client.Nodes().Info(id, nil)
 
 	if err != nil {
@@ -200,17 +209,17 @@ func getResourcesForNode(client *api.Client, id string) (*api.Resources, error) 
 	}
 
 	// Total available resources
-	total := &api.Resources{}
+	total := resources{}
 
 	r := node.Resources
 	res := node.Reserved
 	if res == nil {
 		res = &api.Resources{}
 	}
-	total.CPU = r.CPU - res.CPU
-	total.MemoryMB = r.MemoryMB - res.MemoryMB
-	total.DiskMB = r.DiskMB - res.DiskMB
-	total.IOPS = r.IOPS - res.IOPS
+	total.CPU = *r.CPU - *res.CPU
+	total.MemoryMB = *r.MemoryMB - *res.MemoryMB
+	total.DiskMB = *r.DiskMB - *res.DiskMB
+	total.IOPS = *r.IOPS - *res.IOPS
 
-	return total, nil
+	return &total, nil
 }
