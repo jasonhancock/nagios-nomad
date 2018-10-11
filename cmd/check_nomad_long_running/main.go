@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,7 +19,7 @@ func main() {
 	p.StringFlag("tls-key", "", "TLS key to use when connecting to Nomad")
 	p.StringFlag("tls-ca-cert", "", "TLS CA cert to use to validate the Nomad server certificate")
 	p.BoolFlag("tls-insecure", false, "Whether or not to validate the server certificate")
-	p.StringFlag("days", "2", "If allocation older than X days trigger alert")
+	p.DurationFlag("duration", 48*time.Hour, "Duration to check")
 	flag.Parse()
 
 	addr := p.OptRequiredString("addr")
@@ -28,14 +27,7 @@ func main() {
 	tlsKey, _ := p.OptString("tls-key")
 	tlsCaCert, _ := p.OptString("tls-ca-cert")
 	tlsInsecure, _ := p.OptBool("tls-insecure")
-	sdays, _ := p.OptString("days")
-
-	// Convert days to negitive number
-	days, err := strconv.Atoi(sdays)
-	if err != nil {
-		p.Fatal(err)
-	}
-	days = days * -1
+	duration, _ := p.OptDuration("duration")
 
 	// Create a nomad client
 	cfg := api.DefaultConfig()
@@ -54,7 +46,7 @@ func main() {
 	}
 
 	// Go find long running Jobs
-	longRunningAllocs, err := findLongRunningJobs(c, time.Now().AddDate(0, 0, days))
+	longRunningAllocs, err := findLongRunningJobs(c, time.Now().Add(duration))
 	if err != nil {
 		p.Fatal(err)
 	}
