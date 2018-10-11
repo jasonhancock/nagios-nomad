@@ -46,7 +46,7 @@ func main() {
 	}
 
 	// Go find long running Jobs
-	longRunningAllocs, err := findLongRunningJobs(c, time.Now().Add(duration))
+	longRunningAllocs, err := findLongRunningJobs(c, time.Now().Add(-1*duration))
 	if err != nil {
 		p.Fatal(err)
 	}
